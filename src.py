@@ -5,6 +5,7 @@ import bs4 as bs
 import re
 import os
 from yarl import URL
+import time
 
 
 BASIC_URL = "https://bbs.hupu.com/23562936.html"
@@ -41,32 +42,44 @@ async def get_pages(url):
 
 
 async def get_img(urls):
+    tasks = list()
     # urls=["https://i10.hoopchina.com.cn/hupuapp/bbs/673/212583948208673/thread_212583948208673_20180912151811_s_72906_w_623_h_516_42285.jpg"]
     async with aiohttp.ClientSession(connector_owner=True) as session:
         for index, url in enumerate(urls):
-
-            async with session.get(URL(url, encoded=True), verify_ssl=False) as res:
-                suffix = url.split(".")[4]
-                print(url)
-                page = await res.read()
-                with open(os.path.join(IMG_DIR, str(index) + "." + suffix), "wb") as f:
-                    f.write(page)
+            task = asyncio.ensure_future(fetch(session, url, index))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
 
 
-async def fetch(urls):
-    async with aiohttp.ClientSession() as session:
-        for url in urls:
-            async with session.get(url) as res:
-                page = await res.text()
-                print(page)
+
+
+async def fetch(session, url, index):
+    async with session.get(URL(url, encoded=True), verify_ssl=False) as res:
+        suffix = url.split(".")[4]
+        print(url)
+        try:
+            page = await res.read()
+            with open(os.path.join(IMG_DIR, str(index) + "." + suffix), "wb") as f:
+                f.write(page)
+        except Exception as e:
+            print(e)
+            print(url)
+            print(index)
+
 
 
 
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    print("Start time: %s", start_time)
     loop = asyncio.get_event_loop()
     tasks = get_pages(BASIC_URL)
     loop.run_until_complete(tasks)
     loop.close()
+    end_time = time.time()
+    print("End time: %s", end_time)
+    print("Total time: %s", end_time - start_time)
+
     # main()
